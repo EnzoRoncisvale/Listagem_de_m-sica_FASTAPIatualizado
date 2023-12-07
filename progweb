@@ -1,0 +1,84 @@
+from fastapi import FastAPI, HTTPException, Request
+from typing import List
+import json
+import uvicorn  # Adicionando a importação do uvicorn
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from fastapi import Request
+from metodos import abrir_lista, incluir_musica
+from classes import Musica
+
+
+
+app = FastAPI()
+
+app.mount('/static', StaticFiles(directory='static'), name='static')
+
+templates = Jinja2Templates(directory='templates')
+
+
+@app.get('/', tags='Home', response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
+    
+@app.get('/listar_musica')
+# Função para carregar as músicas do arquivo
+async def carregar_musicas():
+    return abrir_lista()
+
+
+@app.post('/incluir_musica')
+# Função para salvar as músicas no arquivo
+async def salvar_musicas(entrada: Musica):
+    try:
+        return incluir_musica(entrada)      
+    except Exception as e:
+        raise e
+    
+# Rota para listar todas as músicas
+@app.get("/musicas", response_model=List[Musica], tags=["Músicas"])
+async def listar_musicas():
+    return carregar_musicas()
+
+# Rota para criar uma nova música
+@app.post("/musicas", response_model=Musica, tags=["Músicas"])
+async def adicionar_musica(musica: Musica):
+    musicas = carregar_musicas()
+    musicas.append(musica.dict())
+    salvar_musicas(musicas)
+    return musica
+
+# Rota para obter detalhes de uma música específica
+@app.get("/musicas/{musica_id}", response_model=Musica, tags=["Músicas"])
+async def obter_musica(musica_id: int):
+    musicas = carregar_musicas()
+    if 1 <= musica_id <= len(musicas):
+        return musicas[musica_id - 1]
+    else:
+        raise HTTPException(status_code=404, detail="Música não encontrada")
+
+# Rota para atualizar uma música existente
+@app.put("/musicas/{musica_id}", response_model=Musica, tags=["Músicas"])
+async def atualizar_musica(musica_id: int, musica: Musica):
+    musicas = carregar_musicas()
+    if 1 <= musica_id <= len(musicas):
+        musicas[musica_id - 1] = musica.dict()
+        salvar_musicas(musicas)
+        return musica
+    else:
+        raise HTTPException(status_code=404, detail="Música não encontrada")
+
+# Rota para remover uma música
+@app.delete("/musicas/{musica_id}", response_model=Musica, tags=["Músicas"])
+async def remover_musica(musica_id: int):
+    musicas = carregar_musicas()
+    if 1 <= musica_id <= len(musicas):
+        musica_removida = musicas.pop(musica_id - 1)
+        salvar_musicas(musicas)
+        return {"mensagem": "Música removida com sucesso!", "musica_removida": musica_removida}
+    else:
+        raise HTTPException(status_code=404, detail="Música não encontrada")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host='localhost', port=8000)
