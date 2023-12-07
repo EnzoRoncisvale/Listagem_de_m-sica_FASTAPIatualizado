@@ -1,0 +1,13 @@
+import sqlite3
+
+banco = sqlite3.connect('banco_de_dados.db')
+comando = banco.cursor()
+
+comando.execute('''
+    CREATE TABLE IF NOT EXISTS tabela_musica (
+            nome text not null, 
+            artista text not null, 
+            album text not null, 
+            ano text not null 
+    )
+''')
